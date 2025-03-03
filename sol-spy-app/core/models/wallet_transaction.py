@@ -19,6 +19,7 @@ class TransactionAction(PyEnum):
     BUY = 'buy'
     SELL = 'sell'
     TRANSFER = 'transfer'
+
 class WalletTransaction(Base):
     __tablename__ = "transactions"
 
@@ -30,8 +31,11 @@ class WalletTransaction(Base):
     status: Mapped[TransactionStatus] = mapped_column(Enum(TransactionStatus), nullable=False)
     token_address: Mapped[str] = mapped_column(String, nullable=False)
     token_symbol: Mapped[str] = mapped_column(String, nullable=False)
-    amount: Mapped[float] = mapped_column(Float, nullable=False)
+    base_amount: Mapped[float] = mapped_column(Float, nullable=False)
+    quote_amount: Mapped[float] = mapped_column(Float, nullable=False)
     price: Mapped[float] = mapped_column(Float, nullable=True)
     timestamp: Mapped[TIMESTAMP] = mapped_column(TIMESTAMP, server_default=func.now())
 
     tracked_wallet: Mapped["TrackedWallet"] = relationship("TrackedWallet", back_populates="transactions")
+
+

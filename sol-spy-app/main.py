@@ -1,4 +1,5 @@
 import uvicorn
+import logging
 from fastapi import FastAPI
 from contextlib import asynccontextmanager
 from sys import prefix
@@ -15,13 +16,13 @@ from core.dao import db_queries
 
 from api import router as api_router
 
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     print("Application started")
-
     #engine = create_async_engine("postgresql+asyncpg://postgres:1111@localhost:2701/solbot", echo=True)
-
     #await db_queries.create_tables()
     yield
     # shutdown

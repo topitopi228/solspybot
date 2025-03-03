@@ -1,3 +1,7 @@
+import logging
+
+from solders.rpc.responses import RpcConfirmedTransactionStatusWithSignature
+from sqlalchemy import func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.exc import IntegrityError
@@ -8,6 +12,11 @@ from core.models.tracked_wallet import TrackedWallet  # Импорт модел�
 from api.solana_api import SolanaAPI  # Импорт класса SolanaAPI
 from core.models.tracked_wallet import FollowMode, WalletStatus
 from core.db_helper import db_helper
+from core.models.wallet_transaction import WalletTransaction, TransactionStatus
+from core.models.wallet_transaction import TransactionAction
+
+
+logger = logging.getLogger(__name__)
 
 
 class WalletService:
@@ -38,7 +47,7 @@ class WalletService:
             wallet_address=wallet_address,
             status=WalletStatus.ACTIVE,  # Устанавливаем статус "ACTIVE" по умолчанию
             follow_mode=follow_mode,  # Режим отслеживания передаётся как аргумент
-            created_at=datetime.now(timezone.utc),
+            created_at=func.now(),
             last_activity_at=None,  # Пока нет активности
             sol_balance=balance  # Устанавливаем начальный баланс
         )
@@ -71,16 +80,55 @@ class WalletService:
             if tracked_wallet:
                 # Обновляем данные в сущности
                 tracked_wallet.sol_balance = balance
-                tracked_wallet.last_activity_at = datetime.now(timezone.utc)  # Обновляем дату последней активности
+                tracked_wallet.last_activity_at = func.now()  # Обновляем дату последней активности
 
-                # Можно также добавить логику для обновления статуса или других полей
-                # Например, проверка на наличие транзакций для изменения состояния кошелька
                 if transactions:
-                    # Если транзакции есть, можно обновить статус или выполнить другую логику
-                    pass
+                    for transaction in transactions:
+                        # Проверяем, что transaction — это RpcConfirmedTransactionStatusWithSignature
+                        if not isinstance(transaction, RpcConfirmedTransactionStatusWithSignature):
+                            logger.error(
+                                f"Некорректный тип транзакции для кошелька {wallet_address}: {type(transaction)}")
+                            continue
 
-                # Сохраняем изменения в базе данных
-                await session.commit()
+                        try:
+                            # Доступ к signature через атрибут .signature
+                            transaction_details = await self.solana_api.get_transaction_details(
+                                transaction.signature  # Используем .signature вместо ['signature']
+                            )
+                            # Проверяем, существует ли уже транзакция в базе данных
+                            result = await session.execute(
+                                select(WalletTransaction).filter(
+                                    WalletTransaction.transaction_hash == transaction_details.transaction_hash)
+                            )
+                            transaction_exists = result.scalar_one_or_none()  # Используем scalar_one_or_none для безопасной проверки
+
+                            if not transaction_exists:
+                                # Если транзакция не существует, добавляем ее в базу данных
+                                new_transaction = WalletTransaction(
+                                    wallet_id=tracked_wallet.id,
+                                    transaction_hash=transaction_details.transaction_hash,
+                                    transaction_action=transaction_details.transaction_action,
+                                    status=TransactionStatus.SUCCESS,
+                                    token_address=transaction_details.token_address,
+                                    token_symbol=transaction_details.token_symbol,
+                                    base_amount=transaction_details.base_amount,
+                                    quote_amount=transaction_details.quote_amount,
+                                    price=transaction_details.price,
+                                    timestamp=func.now()  # Используем func.now() для консистентности
+                                )
+                                session.add(new_transaction)
+                                logger.info(f"Добавлена новая транзакция: {transaction_details.transaction_hash}")
+                        except Exception as e:
+                            logger.error(f"Ошибка при обработке транзакции для кошелька {wallet_address}: {e}")
+
+                    # Сохраняем все изменения в одной транзакции
+                try:
+                    await session.commit()
+                    logger.info(f"Данные для кошелька {wallet_address} обновлены, транзакции обработаны.")
+                except Exception as e:
+                    await session.rollback()
+                    logger.error(f"Ошибка при сохранении данных для {wallet_address}: {e}")
+                    raise ValueError(f"Не удалось обновить данные кошелька: {str(e)}")
 
     async def update_wallet_status(self, wallet_address: str, new_status: WalletStatus):
         """
