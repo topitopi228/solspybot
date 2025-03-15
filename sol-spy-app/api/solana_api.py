@@ -1,23 +1,10 @@
 from decimal import Decimal
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Dict
 
 from solders.pubkey import Pubkey
 from solana.rpc.async_api import AsyncClient
 from solders.signature import Signature
-
-if TYPE_CHECKING:
-    from core.models.wallet_transaction import TransactionAction, TransactionStatus
-
-
-class TransactionDetails:
-    def __init__(self, transaction_hash, transaction_action, token_address, token_symbol, base_amount, quote_amount, price):
-        self.transaction_hash = str(transaction_hash)
-        self.transaction_action = transaction_action
-        self.token_address = token_address
-        self.token_symbol = token_symbol
-        self.base_amount = base_amount
-        self.quote_amount = quote_amount
-        self.price = price
+from core.models.wallet_transaction import TransactionAction, TransactionStatus, WalletTransaction
 
 
 class SolanaAPI:
@@ -40,12 +27,11 @@ class SolanaAPI:
         try:
             public_key = Pubkey.from_string(wallet_address)
             response = await self.client.get_signatures_for_address(public_key, limit=limit)
-            print(response)
             return response.value
         except Exception as e:
             raise ValueError(f"Failed to fetch transactions for {wallet_address}: {e}")
 
-    async def get_transaction_details(self, signature: Signature) -> TransactionDetails:
+    async def get_transaction_details(self, signature: Signature) -> Dict :
 
         """
         Получает детали транзакции по её подписи, включая тип транзакции, адрес токена, символ токена, количество базового и котируемого токена, и цену в SOL,
@@ -54,55 +40,48 @@ class SolanaAPI:
         transaction_hash = str(signature)
         token_address = None
         token_symbol = None
-        base_amount = None  # Количество базового токена (купленного/проданного)
-        quote_amount = None  # Количество котируемого токена (например, SOL)
+        buy_amount = None  # Количество базового токена (купленного/проданного)
+        sell_amount = None  # Количество котируемого токена (например, SOL)
         price = None
         transaction_action = TransactionAction.TRANSFER
+        transaction_info=None
+        dex_name=None
 
         # Используем Bitquery для получения всех данных, если доступен
         if self.bitquery:
-            # Получаем адрес токена, базовое количество и котируемое количество через Bitquery
-            token_address, base_amount, quote_amount = await self.bitquery.get_token_details(transaction_hash)
 
             # Определяем тип транзакции
-            bitquery_type = await self.bitquery.get_transaction_type(transaction_hash)
-            print(bitquery_type, "vs,fwfpwfpwefwefwefqpfmqfpqwmwfpqfkmwepkrmvwkpveq")
-            print(bitquery_type)
-            if bitquery_type == "buy":
+            transaction_info = await self.bitquery.get_transaction_info(transaction_hash)
+            if transaction_info.get("transaction_type") == "buy":
                 transaction_action = TransactionAction.BUY
-            elif bitquery_type == "sell":
+            elif transaction_info.get("transaction_type") == "sell":
                 transaction_action = TransactionAction.SELL
             else:
                 transaction_action = TransactionAction.TRANSFER
 
-            # Получаем символ токена, если адрес токена найден
-            if token_address:
-                token_symbol = await self.bitquery.get_token_symbol(token_address)
                 # Получаем цену, если символ токена известен
-                price = await self.bitquery.get_token_price_in_sol(
-                    token_symbol) if token_symbol != "Unknown" else None
-            else:
-                token_symbol = "Unknown"
-                base_amount = None
-                quote_amount = None
-                price = None
+            price = await self.bitquery.get_token_price_in_sol(transaction_info.get("token_address"))
+
         else:
             # Если Bitquery недоступен, возвращаем значения по умолчанию
             token_symbol = "Unknown"
-            base_amount = None
-            quote_amount = None
-            price = None
+            buy_amount = 0.0
+            sell_amount =0.0
+            price = 0.0
+            dex_name="Unknown"
             transaction_action = TransactionAction.TRANSFER
 
-        return TransactionDetails(
-            transaction_hash=transaction_hash,
-            transaction_action=transaction_action,
-            token_address=token_address,
-            token_symbol=token_symbol,
-            base_amount=base_amount,  # Количество базового токена
-            quote_amount=quote_amount,  # Количество котируемого токена
-            price=price
-        )
+        return {
+            "transaction_hash": transaction_hash,
+            "transaction_action": transaction_action,
+            "token_address": transaction_info.get("token_address"),
+            "token_symbol": transaction_info.get("token_symbol"),
+            "buy_amount": transaction_info.get("buy_amount"),
+            "sell_amount": transaction_info.get("sell_amount"),
+            "transfer_amount": transaction_info.get("transfer_amount"),
+            "dex_name": transaction_info.get("dex_name"),
+            "price": price
+        }
 
     async def close(self):
         """

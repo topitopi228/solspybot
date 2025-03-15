@@ -9,8 +9,10 @@ from sqlalchemy.orm import Mapped, mapped_column
 from enum import Enum as PyEnum
 from typing import TYPE_CHECKING, Optional
 
+
 if TYPE_CHECKING:
     from core.models.wallet_transaction import WalletTransaction
+    from core.models.wallet_token import WalletToken
 
 class WalletStatus(PyEnum):
     ACTIVE = 'active'

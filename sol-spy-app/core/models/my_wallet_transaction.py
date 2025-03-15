@@ -32,10 +32,10 @@ class MyWalletTransaction(Base):
     transaction_hash: Mapped[str] = mapped_column(String, nullable=False, unique=True)
     transaction_action: Mapped[TransactionAction] = mapped_column(Enum(TransactionAction), nullable=False) # "buy" или "sell"
     status: Mapped[TransactionStatus] = mapped_column(Enum(TransactionStatus), nullable=False)
-    token_address: Mapped[str] = mapped_column(String, nullable=False)
-    token_symbol: Mapped[str] = mapped_column(String, nullable=False)
-    base_amount: Mapped[float] = mapped_column(Float, nullable=False)
-    quote_amount: Mapped[float] = mapped_column(Float, nullable=False)
+    token_address: Mapped[str] = mapped_column(String)
+    token_symbol: Mapped[str] = mapped_column(String)
+    buy_amount: Mapped[float] = mapped_column(Float)
+    sell_amount: Mapped[float] = mapped_column(Float)
     price: Mapped[float] = mapped_column(Float, nullable=False)
     timestamp: Mapped[TIMESTAMP] = mapped_column(TIMESTAMP, server_default=func.now())
 

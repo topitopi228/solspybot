@@ -30,10 +30,12 @@ class WalletTransaction(Base):
                                                                   nullable=False)  # "buy" или "sell"
     status: Mapped[TransactionStatus] = mapped_column(Enum(TransactionStatus), nullable=False)
     token_address: Mapped[str] = mapped_column(String, nullable=False)
-    token_symbol: Mapped[str] = mapped_column(String, nullable=False)
-    base_amount: Mapped[float] = mapped_column(Float, nullable=False)
-    quote_amount: Mapped[float] = mapped_column(Float, nullable=False)
-    price: Mapped[float] = mapped_column(Float, nullable=True)
+    token_symbol: Mapped[str] = mapped_column(String)
+    buy_amount: Mapped[float] = mapped_column(Float)
+    sell_amount: Mapped[float] = mapped_column(Float)
+    transfer_amount: Mapped[float] = mapped_column(Float)
+    dex_name: Mapped[str] = mapped_column(String)
+    price: Mapped[float] = mapped_column(Numeric(15,8), nullable=True)
     timestamp: Mapped[TIMESTAMP] = mapped_column(TIMESTAMP, server_default=func.now())
 
     tracked_wallet: Mapped["TrackedWallet"] = relationship("TrackedWallet", back_populates="transactions")

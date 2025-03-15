@@ -1,10 +1,15 @@
-from typing import Optional, Union
+import traceback
+from decimal import Decimal, ROUND_HALF_UP
+from typing import Optional, Union, Dict, List
 import aiohttp
+from fastapi import requests
 from gql import Client, gql
 from gql.transport.aiohttp import AIOHTTPTransport
 import os
 from dotenv import load_dotenv
 import logging
+
+from httpx import TransportError
 
 # Настройка логирования
 logging.basicConfig(level=logging.INFO)
@@ -13,18 +18,9 @@ logger = logging.getLogger(__name__)
 # Загружаем переменные окружения из .env файла
 load_dotenv()
 
+
 class BitqueryAPI:
-    def __init__(self, endpoint: str = "https://graphql.bitquery.io/", api_token: str = None):
-        """
-        Инициализирует клиента Bitquery API с эндпоинтом и токеном для аутентификации.
-
-        Args:
-            endpoint (str): URL эндпоинта Bitquery (по умолчанию https://graphql.bitquery.io/)
-            api_token (str, optional): Токен доступа Bitquery. Если не указан, берется из переменной окружения.
-
-        Raises:
-            ValueError: Если API токен не указан или некорректен.
-        """
+    def __init__(self, endpoint: str = "https://streaming.bitquery.io/eap", api_token: str = None):
         # Получаем токен из переменной окружения, если он не передан явно
         self.api_token = api_token or os.getenv("BITQUERY_API_TOKEN")
         if not self.api_token:
@@ -43,168 +39,176 @@ class BitqueryAPI:
         self.transport = AIOHTTPTransport(url=endpoint, headers=headers)
         self.client = Client(transport=self.transport, fetch_schema_from_transport=True)
 
-    async def get_token_symbol(self, token_address: str) -> str:
-        query = gql(
-            """
-            query MyQuery($tokenAddress: String!) {
-              Solana {
-                Tokens(limit: { count: 1 }, where: {Address: {is: $tokenAddress}}) {
-                  Token {
-                    Symbol
-                  }
-                  Address
-                }
-              }
-            }
-            """
-        )
-        try:
-            variables = {"tokenAddress": token_address}
-            result = await self.client.execute_async(query, variable_values=variables)
-            tokens = result.get('Solana', {}).get('Tokens', [])
-            for token in tokens:
-                if token['Address'] == token_address:
-                    logger.info(f"Найден символ токена {token['Token']['Symbol']} для адреса {token_address}")
-                    return token['Token']['Symbol']
-            logger.warning(f"Символ токена для {token_address} не найден")
-            return "Unknown"
-        except Exception as e:
-            logger.error(f"Ошибка при получении символа токена для {token_address}: {e}")
-            return "Unknown"
 
-    async def get_token_price_in_sol(self, token_symbol: str) -> Optional[float]:
+    async def get_token_price_in_sol(self, token_address: str) -> Optional[float]:
+        # WSOL mint address
+        sol_mint = "So11111111111111111111111111111111111111112"
+
         query = gql(
             """
-            query MyQuery($tokenSymbol: String!) {
+            query GetTokenPriceInSOL($tokenAddress: String!, $solMint: String!) {
               Solana {
-                DEXTrades(limit: { count: 1 }, where: {Trade: {Currency: {Symbol: {is: $tokenSymbol}}}}) {
+                DEXTradeByTokens(
+                  where: {
+                    Trade: {
+                      Currency: {MintAddress: {is: $tokenAddress}},
+                      Side: {Currency: {MintAddress: {is: $solMint}}}
+                    }
+                  }
+                  orderBy: {descending: Block_Time}
+                  limit: {count: 1}
+                ) {
                   Trade {
                     Currency {
+                      MintAddress
                       Symbol
                     }
-                    PriceInSOL
+                    Price
                   }
                 }
               }
             }
             """
         )
+
         try:
-            variables = {"tokenSymbol": token_symbol}
+            variables = {
+                "tokenAddress": token_address,
+                "solMint": sol_mint
+            }
+
             result = await self.client.execute_async(query, variable_values=variables)
-            trades = result.get('Solana', {}).get('DEXTrades', [])
-            for trade in trades:
-                if trade['Trade']['Currency']['Symbol'] == token_symbol:
-                    logger.info(f"Найдена цена для {token_symbol}: {trade['Trade']['PriceInSOL']} SOL")
-                    return trade['Trade']['PriceInSOL']
-            logger.warning(f"Цена для {token_symbol} не найдена")
-            return None
-        except Exception as e:
-            logger.error(f"Ошибка при получении цены для {token_symbol}: {e}")
+            trades = result.get('Solana', {}).get('DEXTradeByTokens', [])
+
+            if trades and len(trades) > 0:
+                trade = trades[0]['Trade']
+                # Получаем цену как строку из ответа для точного представления
+                price_str = str(trade.get('Price', 0))
+                # Преобразуем в Decimal для точного расчета
+                price_decimal = Decimal(price_str).quantize(Decimal('0.00000001'),
+                                                            rounding=ROUND_HALF_UP)  # Округляем до 8 знаков после запятой
+                # Конвертируем в float для возврата
+                price_float = float(price_decimal)
+
+                symbol = trade.get('Currency', {}).get('Symbol', 'Unknown')
+                logger.info(f"Found price for token {symbol} ({token_address}): {price_float} SOL")
+
+                # Форматируем цену с 8 десятичными знаками для отображения
+                formatted_price_fixed = f"{price_float:.8f}"  # Показывает 8 десятичных знаков (например, 0.00002389)
+                print(f"Token price (fixed decimal): {formatted_price_fixed} SOL")
+
+                return price_float
+
+            logger.warning(f"Price for token with address {token_address} not found")
             return None
 
-    async def get_transaction_type(self, transaction_hash: str) -> str:
+        except Exception as e:
+            logger.error(f"Error getting price for token with address {token_address}: {str(e)}")
+            return None
+
+    async def get_transaction_info(self, transaction_hash: str) -> Dict:
         query = gql(
             """
-            query MyQuery($transactionHash: String!) {
-              Solana {
-                DEXTrades(where: {Transaction: {Hash: {is: $transactionHash}}}) {
+            query GetSolanaTransactionType($transactionHash: String!) {
+              Solana {  # Исправлено на "solana" с маленькой буквы
+                DEXTrades(
+                  where: {Transaction: {Signature: {is: $transactionHash}}}
+                  limit: {count: 1}
+                ) {
+                  Transaction {
+                    Signature
+                  }
                   Trade {
-                    Side
+                    Buy {
+                      Amount
+                      Currency {
+                        MintAddress
+                        Symbol
+                      }
+                    }
+                    Sell {
+                      Amount
+                      Currency {
+                        MintAddress
+                        Symbol
+                      }
+                    }
+                    Dex {
+                      ProtocolName
+                      ProtocolFamily
+                    }
                   }
                 }
               }
             }
             """
         )
+
+        transaction_info = {
+            "transaction_type": "transfer",
+            "token_address": "",
+            "token_symbol": "Unknown",
+            "buy_amount": 0.0,
+            "sell_amount": 0.0,
+            "transfer_amount": 0.0,
+            "dex_name": ""
+        }
+
         try:
             variables = {"transactionHash": transaction_hash}
             result = await self.client.execute_async(query, variable_values=variables)
-            trades = result.get('Solana', {}).get('DEXTrades', [])
-            for trade in trades:
-                side = trade['Trade']['Side']
-                if side == "BUY":
-                    logger.info(f"Транзакция {transaction_hash} определена как покупка")
-                    return "buy"
-                elif side == "SELL":
-                    logger.info(f"Транзакция {transaction_hash} определена как продажа")
-                    return "sell"
-            logger.warning(f"Транзакция {transaction_hash} не является торговлей, определена как перевод")
-            return "transfer"  # По умолчанию, если это не торговля
-        except Exception as e:
-            logger.error(f"Ошибка при определении типа транзакции {transaction_hash}: {e}")
-            return "transfer"
 
-    async def get_token_details(self, transaction_hash: str) -> tuple[Optional[str], Optional[float], Optional[float]]:
-        # Проверяем, является ли транзакция торговлей (DEXTrade)
-        dex_trade_query = gql(
-            """
-            query MyQuery($transactionHash: String!) {
-              Solana {
-                DEXTrades(where: {Transaction: {Hash: {is: $transactionHash}}}) {
-                  Trade {
-                    Side
-                    BaseAmount
-                    QuoteAmount
-                    Currency {
-                      Address
-                      Symbol
-                    }
-                    QuoteCurrency {
-                      Address
-                      Symbol
-                    }
-                  }
-                }
-              }
-            }
-            """
-        )
-        try:
-            variables = {"transactionHash": transaction_hash}
-            result = await self.client.execute_async(dex_trade_query, variable_values=variables)
-            trades = result.get('Solana', {}).get('DEXTrades', [])
-            for trade in trades:
-                token_address = trade['Trade']['Currency']['Address']  # Адрес базового токена
-                base_amount = trade['Trade']['BaseAmount']  # Количество базового токена (купленного/проданного)
-                quote_amount = trade['Trade']['QuoteAmount']  # Количество котируемого токена (например, SOL)
-                side = trade['Trade']['Side']
-                logger.info(f"Торговая операция {transaction_hash}: {side}, базовый токен {token_address} ({trade['Trade']['Currency']['Symbol']}), количество {base_amount}, котируемый токен {trade['Trade']['QuoteCurrency']['Symbol']}, количество {quote_amount}")
-                return token_address, base_amount, quote_amount
-        except Exception as e:
-            logger.warning(f"Данные о торговой операции для {transaction_hash} не найдены в DEXTrades: {e}")
+            # Проверяем, является ли транзакция торговлей (DEXTrades)
+            dex_trades = result.get('Solana', {}).get('DEXTrades', [])
+            if dex_trades:
+                trade = dex_trades[0]['Trade']
 
-        # Если это не торговая операция, проверяем, является ли это переводом токена (Transfer)
-        transfer_query = gql(
-            """
-            query MyQuery($transactionHash: String!) {
-              Solana {
-                Transfers(where: {Transaction: {Hash: {is: $transactionHash}}}) {
-                  Transfer {
-                    Amount
-                    Currency {
-                      Address
-                      Symbol
-                    }
-                  }
-                }
-              }
+                # Определяем тип транзакции на основе токенов и сумм
+                solana_mint = "So11111111111111111111111111111111111111112"  # WSOL mint address
+
+                if (trade.get('Buy') and
+                        trade.get('Sell') and trade['Sell'].get('Currency', {}).get('MintAddress') == solana_mint and
+                        float(trade['Sell'].get('Amount', 0.0)) > 0):
+                    transaction_info["transaction_type"] = "buy"
+                    transaction_info["token_address"] = trade['Buy']['Currency'].get('MintAddress', "")
+                    transaction_info["token_symbol"] = trade['Buy']['Currency'].get('Symbol', "Unknown")
+                    transaction_info["buy_amount"] = float(trade['Buy'].get('Amount', 0.0))
+                    transaction_info["sell_amount"] = float(trade['Sell'].get('Amount', 0.0))
+                    transaction_info["dex_name"] = trade['Dex'].get('ProtocolFamily', "Unknown")
+                    logger.info(
+                        f"Transaction {transaction_hash} identified as a buy (sent SOL, received token: {transaction_info['token_symbol']}, amount: {transaction_info['buy_amount']}, SOL spent: {transaction_info['sell_amount']})")
+                    return transaction_info
+                # Если купили WSOL (SOL) и продали токен — это "sell" (отправил токен, получил SOL)
+                elif (trade.get('Sell') and
+                      trade.get('Buy') and trade['Buy'].get('Currency', {}).get('MintAddress') == solana_mint and
+                      float(trade['Buy'].get('Amount', 0.0)) > 0):
+                    transaction_info["transaction_type"] = "sell"
+                    transaction_info["token_address"] = trade['Sell']['Currency'].get('MintAddress',
+                                                                                      "")  # Токен, отправленный (Sell)
+                    transaction_info["token_symbol"] = trade['Sell']['Currency'].get('Symbol',
+                                                                                     "Unknown")  # Символ токена, отправленного
+                    transaction_info["sell_amount"] = float(trade['Sell'].get('Amount', 0.0))
+                    transaction_info["buy_amount"] = float(trade['Buy'].get('Amount', 0.0))
+                    transaction_info["dex_name"] = trade['Dex'].get('ProtocolFamily', "Unknown")
+                    logger.info(
+                        f"Transaction {transaction_hash} identified as a sell (sent token: {transaction_info['token_symbol']}, amount: {transaction_info['buy_amount']}, received SOL: {transaction_info['sell_amount']})")
+                    return transaction_info
+            else:
+                logger.info(f"Transaction {transaction_hash} identified as a transfer (no DEX trade found)")
+                return transaction_info
+
+
+        except (TransportError, KeyError, ValueError, Exception) as e:
+            logger.error(f"Error getting transaction info for {transaction_hash}: {str(e)}")
+            return {
+                "transaction_type": "transfer",
+                "token_address": "",
+                "token_symbol": "Unknown",
+                "buy_amount": 0.0,
+                "sell_amount": 0.0,
+                "transfer_amount": 0.0,
+                "dex_name": ""
             }
-            """
-        )
-        try:
-            result = await self.client.execute_async(transfer_query, variable_values=variables)
-            transfers = result.get('Solana', {}).get('Transfers', [])
-            for transfer in transfers:
-                token_address = transfer['Transfer']['Currency']['Address']
-                amount = transfer['Transfer']['Amount']
-                logger.info(f"Перевод {transaction_hash}: токен {token_address} ({transfer['Transfer']['Currency']['Symbol']}), количество {amount}")
-                return token_address, amount, None  # Для переводов возвращаем только количество и None для quote_amount
-            logger.warning(f"Данные о переводе для {transaction_hash} не найдены в Transfers")
-            return None, None, None
-        except Exception as e:
-            logger.error(f"Ошибка при получении данных о токене для {transaction_hash}: {e}")
-            return None, None, None
 
     async def close(self):
         """

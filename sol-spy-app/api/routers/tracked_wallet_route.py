@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, validator, field_validator
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from api.bitquery_api import BitqueryAPI
 from api.solana_api import SolanaAPI
 from core.service.tracked_wallet_service import WalletService
 from core.models.tracked_wallet import FollowMode, WalletStatus
