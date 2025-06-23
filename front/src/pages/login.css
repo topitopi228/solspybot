@@ -1,0 +1,51 @@
+/* Login.css */
+.login-container {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  background-image: url("/front/sol-bot-frontend/src/assets/images/backgroundLogin.jpg");
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+.login-form {
+  background-color: rgba(0, 0, 0, 0.7);
+  border-radius: 8px;
+  padding: 20px;
+  max-width: 400px;
+  width: 100%;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+.login-form h4 {
+  color: #fff;
+  text-align: center;
+  margin-bottom: 16px;
+}
+
+.login-form .text-field {
+  background-color: rgba(255, 255, 255, 0.9);
+}
+
+.login-form .text-field label {
+  color: #aaa;
+}
+
+.login-form .text-field .MuiOutlinedInput-root {
+  border-color: #aaa;
+}
+
+.login-form .text-field .MuiOutlinedInput-root:hover fieldset {
+  border-color: #fff;
+}
+
+.login-form .text-field .MuiOutlinedInput-root.Mui-focused fieldset {
+  border-color: #1976d2;
+}
+
+.login-form .login-button {
+  margin-top: 16px;
+}
