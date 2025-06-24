@@ -13,5 +13,4 @@ class WalletToken(Base):
     wallet_id: Mapped[int] = mapped_column(ForeignKey("tracked_wallets.id", ondelete='CASCADE'), nullable=False)  # Связь с кошельком
     token_address: Mapped[str] = mapped_column(String, nullable=False)
     token_symbol: Mapped[str] = mapped_column(String, nullable=True)
-    price_in_usd: Mapped[float] = mapped_column(Float)
-    balance: Mapped[float] = mapped_column(Float, default=0.0)  # Текущий баланс токенов
+    balance: Mapped[float] = mapped_column(Float, default=0.0)

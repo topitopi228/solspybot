@@ -1,50 +1,49 @@
-import uvicorn
 import logging
-from fastapi import FastAPI
+
 from contextlib import asynccontextmanager
-from sys import prefix
 
-from sqlalchemy.ext.asyncio import create_async_engine
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
-from api.bitquery_api import BitqueryAPI
-from api.routers.tracked_wallet_route import tracked_wallet_router
 from api.helius_api import HeliusApi
+from api.jupiter_api import JupiterAPI
+from api.routers import bot_wallet_route
+from api.routers import tracked_wallet_route
+from api.routers import copy_traiding_route
+from api.routers import tracked_statistics_route
+from api.routers import user_route
 from core.config import settings
 from core.db_helper import db_helper
 import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from core.dao import db_queries
-from core.service.tracked_wallet_service import WalletService
 
 from api import router as api_router
-from api.solana_api import SolanaAPI
+from core.service.tracked_statistics_service import TrackedStatisticsService
+from core.service.worker_service import WorkerService
+from api.api_init_helper import api_helper
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+scheduler = AsyncIOScheduler()
+worker_service = WorkerService(scheduler)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     print("Application started")
-    # engine = create_async_engine("postgresql+asyncpg://postgres:1111@localhost:2701/solbot", echo=True)
-    #await db_queries.create_tables()
-    #bitquery = BitqueryAPI()
-    #wtoken= await bitquery.fetch_token_data("GHPCChGqtKf4sFaN1wPPCapcweKXBBngB3hF7D6nT29e","G36dYPnfDaYTNsEX7XJnUa6i15Nyn9apMzj2skkppump")
-    #wtoken= await bitquery.update_tokens_data("GHPCChGqtKf4sFaN1wPPCapcweKXBBngB3hF7D6nT29e")
-    solscan=HeliusApi()
-    tokens= await  solscan.get_token_balance("HFqx9e6QmY6EewAEawCdbkuPFHXUNus9B2KBd8MPb2Jx","GSHhPz2AVL5efwV9PVxR1SxDdLU5So2PT641W7QRpump")
-    print(tokens)
-    #print(wtoken)
-    #solana = SolanaAPI()
-    #info_tran= await solana.get_transaction_details("LZHKNam1oaFYHQanYRcCUfusPSdrj4Sa2K9PR7eTWoAMyxziKkb9ctdUGT1rJekUnY8BwQ8XbUQk9ubyrGtxuiC")
-    #info_tran= await solana.get_wallet_transactions("GHPCChGqtKf4sFaN1wPPCapcweKXBBngB3hF7D6nT29e")
-    #print(info_tran)
-    #service=WalletService()
-    #trans=service.update_wallet_data("GHPCChGqtKf4sFaN1wPPCapcweKXBBngB3hF7D6nT29e")
-    #type =await bitquery.get_transaction_info(
-    #    "4va8WUXwGBUvzHoUXCaDVVzdS9HV7xHvjP9oiVnRMNc4myvetC9StAYLcu7puV7XQB64EvKwDyfxzmaM63Vrwb6Y")
-    #price=await  bitquery.get_token_price_in_sol("G5HjbQ7WCfvNKMv1LAz8puDifHTYaQefUHRvMZYfJgay")
+    worker_service.setup_jobs()
+    await worker_service.start()
+    input_mint="So11111111111111111111111111111111111111112"
+    output_mint="Exms4qnKb7GtnPXom1Z4fWn1MnyX46jkcmAy3RWxpump"
+    hh= await api_helper.jupiter_api.get_swap_quote_for_buy(input_mint,output_mint,5)
+    input_mint1 = "Exms4qnKb7GtnPXom1Z4fWn1MnyX46jkcmAy3RWxpump"
+    output_mint1 = "So11111111111111111111111111111111111111112"
+    hh = await api_helper.jupiter_api.get_swap_quote_for_sell(input_mint, output_mint, 552352531)
+
+    print(hh)
+
+
     yield
     # shutdown
     print("dispose engine")
@@ -56,21 +55,28 @@ main_app = FastAPI(
 )
 origins = [
 
-    "http://localhost:3000",  # Локальный фронтенд
+    "http://localhost:3000",
     "https://localhost:3000",
 ]
 
 # Добавляем CORS middleware
 main_app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,  # Список доменов, которым разрешено отправлять запросы
+    allow_origins=["*"],
     allow_credentials=True,
-    allow_methods=["*"],  # Разрешаем все HTTP методы (GET, POST и т.д.)
-    allow_headers=["*"],  # Разрешаем все заголовки
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 main_app.include_router(api_router, prefix=settings.api.prefix)
-main_app.include_router(tracked_wallet_router, prefix=settings.api.prefix)
+main_app.include_router(tracked_wallet_route.router, prefix=settings.api.prefix)
+
+main_app.include_router(copy_traiding_route.router, prefix=settings.api.prefix)
+
+main_app.include_router(user_route.router, prefix=settings.api.prefix)
+main_app.include_router(bot_wallet_route.router, prefix=settings.api.prefix)
+
+main_app.include_router(tracked_statistics_route.router, prefix=settings.api.prefix)
 
 if __name__ == '__main__':
     uvicorn.run('main:main_app',
@@ -78,5 +84,3 @@ if __name__ == '__main__':
                 port=settings.run.port,
                 reload=True,
                 )
-
-# asyncio.run(query_methods.create_tables())

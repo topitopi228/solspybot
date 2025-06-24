@@ -1,18 +1,16 @@
-from decimal import Decimal
-from typing import TYPE_CHECKING, Dict
+
+from typing import  Dict
 
 from solders.pubkey import Pubkey
 from solana.rpc.async_api import AsyncClient
 from solders.signature import Signature
-from core.models.wallet_transaction import TransactionAction, TransactionStatus, WalletTransaction
+from core.models.wallet_transaction import TransactionAction
 
 
 class SolanaAPI:
     def __init__(self, endpoint: str = "https://api.mainnet-beta.solana.com"):
         self.client = AsyncClient(endpoint)
-        # Инициализация Bitquery API или утилит
-        from api.bitquery_api import BitqueryAPI  # Импорт отдельного класса
-        self.bitquery = BitqueryAPI()
+
 
     async def get_balance(self, wallet_address: str) -> float:
         try:
@@ -23,7 +21,7 @@ class SolanaAPI:
         except Exception as e:
             raise ValueError(f"Failed to get balance for {wallet_address}: {e}")
 
-    async def get_wallet_transactions(self, wallet_address: str, limit: int = 10):
+    async def get_wallet_transactions(self, wallet_address: str, limit: int = 5):
         try:
             public_key = Pubkey.from_string(wallet_address)
             response = await self.client.get_signatures_for_address(public_key, limit=limit)

@@ -39,4 +39,5 @@ class MyWalletTransaction(Base):
     price: Mapped[float] = mapped_column(Float, nullable=False)
     timestamp: Mapped[TIMESTAMP] = mapped_column(TIMESTAMP, server_default=func.now())
 
+
     bot_wallet: Mapped["BotWallet"] = relationship("BotWallet", back_populates="transactions")

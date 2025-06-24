@@ -1,8 +1,7 @@
-import traceback
+
 from decimal import Decimal, ROUND_HALF_UP
-from typing import Optional, Union, Dict, List
-import aiohttp
-from fastapi import requests
+from typing import Optional,  Dict
+
 from gql import Client, gql
 from gql.transport.aiohttp import AIOHTTPTransport
 import os

@@ -1,47 +1,30 @@
-from typing import Optional, Dict
-import asyncio
+from typing import  Dict
+
 import requests
-from solana.rpc.api import Client
+
+from solana.rpc.async_api import AsyncClient
 from solders.keypair import Keypair
 from solders.pubkey import Pubkey
-from solders.signature import Signature
+
 from solders.solders import Transaction
-from solders.transaction import Transaction as SolanaTransaction
+
 from solders.rpc.config import RpcSendTransactionConfig
 from solders.instruction import Instruction
 import logging
 import time
-import json
 
-from core.models.my_wallet_transaction import MyWalletTransaction
 
 logger = logging.getLogger(__name__)
 
+
 class RaydiumAPI:
     def __init__(self, rpc_endpoint: str, raydium_api_endpoint: str = "https://api.raydium.io/v1"):
-        """
-        Инициализация API для взаимодействия с Raydium Trade API и Solana RPC.
 
-        Args:
-            rpc_endpoint: URL RPC-ноды Solana (загружается из .env в BotWalletService)
-            raydium_api_endpoint: URL Raydium Trade API
-        """
-        self.solana_client = Client(rpc_endpoint)
+        self.solana_client = AsyncClient(rpc_endpoint)
         self.raydium_api_endpoint = raydium_api_endpoint
 
     async def get_swap_quote(self, input_mint: str, output_mint: str, amount: float, slippage_bps: int = 100) -> Dict:
-        """
-        Получает котировку для свопа через Raydium Trade API.
 
-        Args:
-            input_mint: Адрес входного токена (например, WSOL: "So11111111111111111111111111111111111111112")
-            output_mint: Адрес выходного токена (например, целевой токен)
-            amount: Количество для свопа (в нативных единицах)
-            slippage_bps: Допустимое проскальзывание в базовых пунктах (по умолчанию 100 = 1%)
-
-        Returns:
-            Dict: Данные котировки, включая инструкции для свопа
-        """
         url = f"{self.raydium_api_endpoint}/swap/quote"
         payload = {
             "inputMint": input_mint,
@@ -58,22 +41,8 @@ class RaydiumAPI:
             raise
 
     async def execute_swap(self, keypair: Keypair, input_mint: str, output_mint: str, amount: float, action: str,
-                           price: float, slippage_bps: int = 100) -> str:
-        """
-        Выполняет своп (покупка/продажа) через Raydium Trade API и Solana RPC.
+                           slippage_bps: int = 100) -> str:
 
-        Args:
-            keypair: Ключевой пары кошелька (Phantom-кошелек)
-            input_mint: Адрес входного токена (WSOL для покупки, целевой токен для продажи)
-            output_mint: Адрес выходного токена (целевой токен для покупки, WSOL для продажи)
-            amount: Количество для свопа (в нативных единицах)
-            action: Тип действия ('BUY' или 'SELL')
-            price: Цена токена в SOL
-            slippage_bps: Допустимое проскальзывание в базовых пунктах
-
-        Returns:
-            str: Подпись транзакции (Base58)
-        """
         start_time = time.time()  # Измеряем время для оптимизации скорости
 
         # Получаем котировку для свопа
@@ -94,7 +63,7 @@ class RaydiumAPI:
         )
 
         # Получаем recent_blockhash с QuickNode
-        recent_blockhash = await self.solana_client.get_latest_blockhash()
+        recent_blockhash = self.solana_client.get_latest_blockhash()
 
         # Создаем и подписываем транзакцию
         transaction = Transaction(recent_blockhash=recent_blockhash.value.blockhash)
@@ -110,7 +79,7 @@ class RaydiumAPI:
         )
 
         # Отправляем транзакцию через QuickNode
-        tx_signature = await self.solana_client.send_transaction(transaction, config=config)
+        tx_signature = self.solana_client.send_transaction(transaction, config=config)
         end_time = time.time()
         logger.info(
             f"Swap executed: {action} {output_mint} for {amount} tokens, signature: {tx_signature.value}, time: {end_time - start_time:.4f} seconds")
