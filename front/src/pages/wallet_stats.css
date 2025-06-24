@@ -1,0 +1,125 @@
+/* src/pages/wallet_stats.css */
+.wallet-stats-container {
+    min-height: 100vh;
+    min-width: 100vw;
+    background: linear-gradient(to bottom, #1e3c72, #2a5298);
+    color: #fff;
+    display: flex;
+    flex-wrap: wrap;
+    max-width: 100vw;
+    flex-direction: column;
+}
+
+.navbar {
+    background-color: #172b4e;
+    display: flex;
+    min-width: 100vw !important;
+
+    justify-content: space-between;
+    align-items: center;
+}
+
+.css-5c1adp-MuiContainer-root {
+    padding: 0 !important;
+}
+
+
+.navbar .logo {
+    font-size: 1.5rem;
+    font-weight: bold;
+    margin-left:20px;
+    text-shadow: 0 0 5px #fff, 0 0 10px #fff, 0 0 20px #0ff;
+}
+
+.navbar .nav-links a {
+    font-size: 19px !important;
+    color: #fff;
+    text-decoration: none;
+    transition: color 0.3s;
+    margin-right: 50px;
+}
+
+.navbar .nav-links a:hover {
+    color: #ffd700;
+}
+
+.stats-content {
+    padding: 2rem;
+    max-width: 100vw;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.stats-layout {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2rem;
+    min-width: 80vw;
+    flex: 1; /* Розтягуємо на весь доступний простір */
+    min-height: 0; /* Допомагає уникнути переповнення */
+}
+
+.stats-period {
+    max-height: 95vh;
+    flex: 0 0 350px; /* Фіксована ширина або мінімальна ширина */
+    background-color: #2a5298;
+    padding: 1rem;
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+}
+
+.stats-card {
+    background-color: #1e3c72;
+    padding: 1rem;
+    border-radius: 8px;
+    flex: 1; /* Розтягуємо вміст карти */
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+
+.transactions-section {
+    flex: 1; /* Розтягуємо секцію транзакцій на залишковий простір */
+    background-color: #2a5298;
+    padding: 1rem;
+    max-width: 90vw;
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+}
+
+.transactions-list {
+    flex: 1; /* Розтягуємо список транзакцій */
+    overflow-y: auto; /* Додаємо прокрутку тільки для списку */
+    padding: 0.5rem;
+    max-height: 100%; /* Дозволяємо займати всю висоту секції */
+}
+
+.transaction-item {
+    background-color: #1e3c72;
+    margin-bottom: 0.5rem;
+    border-radius: 7px;
+    max-width: 85vw;
+    padding: 0.5rem;
+    min-height: 7vh !important;
+}
+
+.css-rizt0-MuiTypography-root {
+    margin: 0;
+    font-family: "Roboto", "Helvetica", "Arial", sans-serif;
+    font-weight: bolder !important;
+    font-size: 19px !important;
+    letter-spacing: 0.00938em;
+}
+
+.css-1a1whku-MuiTypography-root {
+    font-size: 17px !important;
+    font-weight: normal !important;
+
+}
+
+.css-cfd5wn-MuiListItem-root {
+    min-height: 10vh !important;
+}

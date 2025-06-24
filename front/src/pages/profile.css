@@ -1,0 +1,42 @@
+.prof-home {
+    min-height: 100vh;
+    min-width: 100vw;
+    max-width: 100vw;
+    background: linear-gradient(to bottom, #1e3c72, #2a5298);
+    color: #fff;
+    display: flex;
+    flex-direction: column;
+    overflow-x: hidden;
+}
+
+.profile {
+    margin-top: 300px;
+}
+.navbar {
+  padding: 1rem;
+  background-color: #172b4e;
+  min-height: 5.5vh;
+  display: flex;
+  max-width: 100vw;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.navbar .logo {
+  margin-left:20px;
+  font-size:30px !important;
+  font-weight: bold;
+  text-shadow: 0 0 5px #fff, 0 0 10px #fff, 0 0 20px #0ff;
+}
+
+.navbar .nav-links a {
+  font-size: 19px !important;
+  color: #fff;
+  text-decoration: none;
+  transition: color 0.3s;
+  margin-right: 50px;
+}
+
+.navbar .nav-links a:hover {
+  color: #ffd700;
+}

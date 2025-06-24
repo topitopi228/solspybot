@@ -1,7 +1,10 @@
 import {useState} from 'react';
 import {Container, TextField, Button, Typography, Box} from '@mui/material';
 import {useNavigate} from 'react-router-dom';
+import axios from "axios";
 import {toast} from 'react-toastify';
+
+import 'react-toastify/dist/ReactToastify.css'; // Імпорт стилів
 import './login.css'
 
 function Login() {
@@ -11,15 +14,31 @@ function Login() {
     const [password, setPassword] = useState('');
     const navigate = useNavigate();
 
-    const handleLogin = () => {
-        // Проста імітація авторизації (заміни на реальний виклик API)
-        if (login === 'admin' && password === 'password') {
+    const handleLogin = async () => {
+        try {
+
+            const response = await axios.post('http://localhost:8080/api/users/login', {
+                login: login,
+                password: password,
+            });
+
+            const {access_token} = response.data;
+
+            localStorage.setItem('access_token', access_token);
 
 
-            navigate('/home'); // Перенаправлення на домашню сторінку
             toast.success('Успішний вхід!');
-        } else {
-            toast.error('Невірний логін або пароль');
+
+
+            navigate('/home');
+        } catch (error) {
+            if (axios.isAxiosError(error) && error.response) {
+
+                toast.error(error.response.data.detail || 'Невірний логін або пароль');
+            } else {
+
+                toast.error('Помилка входу. Спробуйте ще раз.');
+            }
         }
     };
 

@@ -1,0 +1,66 @@
+/* src/pages/Home.css */
+.home-container {
+  min-height: 100vh;
+  min-width: 100vw;
+  background: linear-gradient(to bottom, #1e3c72, #2a5298);
+  color: whitesmoke;
+  display: flex;
+  flex-direction: column;
+}
+
+.navbar {
+  padding: 1rem;
+  background-color: rgba(6, 12, 67, 0.82);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.navbar .logo {
+  margin-left:20px;
+  font-size: 1.5rem;
+  font-weight: bold;
+  text-shadow: 0 0 5px #fff, 0 0 10px #fff, 0 0 20px #0ff;
+}
+
+.navbar .nav-links a {
+  margin-left: 1rem;
+  color: whitesmoke;
+  text-decoration: none;
+  transition: color 0.3s;
+}
+
+.navbar .nav-links a:hover {
+  color: #ffd700;
+}
+
+.section {
+  padding: 2rem;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.wallet-connect {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.stats-card,
+.traders-card {
+  background-color: #2a5298;
+  padding: 1rem;
+  border-radius: 8px;
+  margin-top: 1rem;
+}
+
+.warning {
+  color: #ef5350;
+  font-size: 0.875rem;
+  margin-top: 0.5rem;
+}
+
+/* Новий стиль для кнопки "Відключити" */
+.wallet-connect .MuiButton-containedSecondary {
+  background-color: #8f1111 !important; /* Червоний колір */
+}

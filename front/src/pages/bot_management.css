@@ -1,0 +1,96 @@
+/* src/pages/BotManagement.css */
+.bot-management-container {
+  min-height: 100vh;
+  min-width: 100vw;
+  max-width: 100vw;
+  background: linear-gradient(to bottom, #1e3c72, #2a5298);
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  overflow-x:hidden;
+}
+
+.navbar {
+  padding: 1rem;
+  background-color: #172b4e;
+  min-height: 5.5vh;
+  display: flex;
+  max-width: 100vw;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.navbar .logo {
+  font-size:30px !important;
+  font-weight: bold;
+
+  margin-left:20px;
+  text-shadow: 0 0 5px #fff, 0 0 10px #fff, 0 0 20px #0ff;
+}
+
+.navbar .nav-links a {
+  font-size: 19px !important;
+  color: #fff;
+  text-decoration: none;
+  transition: color 0.3s;
+  margin-right: 50px;
+}
+
+.navbar .nav-links a:hover {
+  color: #ffd700;
+}
+
+.main-content {
+  display: flex;
+  flex-direction: row;
+  gap: 2rem;
+  max-width: 100vw;
+  margin: 0;
+  flex: 1;
+}
+
+.management-section {
+  flex: 1;
+  margin-left: 3vw;
+  margin-top: 5vh;
+  background-color: #2a5298;
+  padding: 1rem;
+  border-radius: 8px;
+  height: fit-content;
+}
+
+.ggwp {
+   color: #172b4e;
+}
+
+.stats-section {
+  flex: 1;
+  background-color: #2a5298;
+  margin-top: 5vh;
+  margin-right: 3vw;
+  padding: 1rem;
+  border-radius: 8px;
+  height: fit-content;
+}
+
+.stats-card {
+  background-color: #1e3c72;
+  padding: 1rem;
+  border-radius: 8px;
+}
+.css-i79p02-MuiButtonBase-root-MuiIconButton-root {
+  background-color: #172b4e !important;
+  margin-left: 10px !important;
+}
+
+.css-q32jq8-MuiButtonBase-root-MuiIconButton-root {
+  margin-left: 15px !important;
+  background-color: #172b4e !important;
+}
+
+@media (max-height: 900px) {
+  .bot-management-container {
+    min-height: 900px;
+    max-height: 900px;
+  }
+}
